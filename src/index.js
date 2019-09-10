@@ -1,9 +1,7 @@
 const addBtn = document.querySelector('#new-toy-btn')
-const toyForm = document.querySelector('.container')
-const toyCollection = document.querySelector('#toy-collection')
 let addToy = false
-const createToyForm = document.querySelector(".add-toy-form")
 
+document.addEventListener("DOMContentLoaded", getAPI) 
 
 addBtn.addEventListener('click', () => {
  // hide & seek with the form
@@ -15,82 +13,93 @@ addBtn.addEventListener('click', () => {
  }
 })
 
-createToyForm.addEventListener('submit', createToy); 
+const toyForm = document.querySelector('.container')
+let addToyForm = document.querySelector(".add-toy-form")
 
-document.addEventListener("DOMContentLoaded", getToys);
+const toyBox = document.querySelector("#toy-collection")
 
-function createToy(event) {
-   const newToy = {
-       name: event.target.name.value,
-       image: event.target.image.value,
-       likes: 0 
-   };
-   postToDb(newToy).then(listToy)
+addToyForm.addEventListener('submit', e => newToyCreate(e))
+
+
+
+function getAPI() {
+  return fetch("http://localhost:3000/toys")
+  .then(resp => resp.json())
+  .then(allToys)
 }
 
-function addToyToIndex(toys) {
- toys.forEach(toy => {
-   listToy(toy)
- });
+function allToys(toys) {
+  toys.forEach(toy => addToyToDOM(toy))
 }
 
-let listToy = toy => {
- let newDiv = document.createElement('div')
- let button = document.createElement('button')
- newDiv.id = `${toy.id}`
- button.className = "like-btn"
- button.innerText = "Like <3"
- button.addEventListener('click', increaseLikes)
- newDiv.className ='card'
- newDiv.innerHTML = `<h2>${toy.name}</h2> <img class= "toy-avatar" src = "${toy.image}"> <p>${toy.likes}</p>`
- newDiv.append(button)
- toyCollection.append(newDiv)
+function newToyCreate(e) {
+  let newToy = {
+       name: addToyForm.children[1].value, 
+       image: addToyForm.children[2].value, 
+       likes: 0
+  }
+  addToytoAPI(newToy).then(preventDefault(e))
 }
+//why does the below work but not the above for the images? 
+// const newToy = {
+//   name: event.target.name.value,
+//   image: event.target.image.value,
+//   likes: 0 
 
-function increaseLikes(e) {
-  e.target.parentNode.children[2].innerText = parseInt(e.target.parentNode.children[2].innerText) + 1;
-  debugger
-  fetch(`http://localhost:3000/toys/${e.target.parentElement.id}`, {
-    method: "PATCH",
+function addToytoAPI(toy) {
+  return fetch("http://localhost:3000/toys", {
+    method: "POST", 
     headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json"
+      "content-type": "application/json", 
+      Accept: "application/json"
+    }, 
+    body: JSON.stringify(toy)
+  }
+  ).then(resp => resp.json()).then(addToyToDOM)
+}
+
+function addToyToDOM(toy) {
+  let br1 = document.createElement('br')
+  let toyDiv = document.createElement('div')
+  toyDiv.classList.add = "card"
+  toyDiv.innerHTML = `<h2>${toy.name}</h2>
+  <img src="${toy.image}" class="toy-avatar" />
+  <p >${toy.likes} Likes</p>`
+  let likeBtn = document.createElement('button')
+  let deletBtn = document.createElement('button')
+  likeBtn.classList.add = "like-btn"   
+  likeBtn.innerHTML = "Like <3 <br>"  
+  deletBtn.innerHTML = "Delete"
+  deletBtn.addEventListener('click', e => deleteToy(e, toy))
+  likeBtn.addEventListener('click', e => likeToy(e, toy))
+  toyDiv.append(likeBtn)
+  likeBtn.append(br1)
+  toyDiv.append(deletBtn)
+  toyBox.append(toyDiv)
+}
+
+function likeToy(e, toy) {
+  e.target.parentNode.children[2].innerText = (parseInt(e.target.parentNode.children[2].innerText) + 1) + " Likes"; 
+  fetch(`http://localhost:3000/toys/${toy.id}`, {
+    method: "PATCH", 
+    headers: {
+      "content-type": "application/json"
     },
     body: JSON.stringify({
-       likes: `${e.target.parentElement}`.likes +=1
-    })
-  }).then(resp => resp.json())
+            likes: toy.likes += 1
+    })}).then(resp => resp.json())
+  }
+  
+function deleteToy(e, toy) {
+  return fetch(`http://localhost:3000/toys/${toy.id}`, {
+    method: "DELETE"
+  }).then(deleteFromDom(e, toy))
 }
 
-// function patchLikes(toy) {
-//     fetch(`http://localhost:3000/toys/${toy.id}`, {
-//         method: "PATCH",
-//         headers: {
-//                 "Content-Type": "application/json",
-//                 Accept: "application/json"
-//         },
-//         body: JSON.stringify({
-//           likes: toy.likes+=1
-//         })
-//     }).then(resp => resp.json())
-//  }
-
-function postToDb(toy) {
-   fetch("http://localhost:3000/toys", {
-       method: "POST",
-       headers: {
-               "Content-Type": "application/json",
-               Accept: "application/json",
-       },
-       body: JSON.stringify(toy)
-   }).then(resp => resp.json())
+function deleteFromDom(e, toy) {
+  e.target.parentNode.remove()
 }
 
-function getToys() {
-   fetch("http://localhost:3000/toys")
-   .then(function(response) {
-     return response.json()
-   }).then(function(json) {
-     addToyToIndex(json)
-}) }
-
+function preventDefault(e) {
+  e.preventDefault()
+}
